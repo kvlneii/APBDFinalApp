@@ -1,0 +1,120 @@
+﻿@page "/watchlist"
+@inject HttpClient httpClient
+@using APBDBlazorApp.Shared
+@using APBDBlazorApp.Shared.Models;
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Buttons
+@inject IJSRuntime js
+
+<h3 class="title">Watchlist</h3>
+<SfGrid @ref="Grid" DataSource="@Companies" AllowPaging="true" AllowSorting="true" RowHeight="80">
+    <GridPageSettings PageSize="5"></GridPageSettings>
+    <GridColumns>
+        <GridColumn HeaderText="Logo" TextAlign="TextAlign.Center" Width="100">
+            <Template>
+                @{
+                    var Company = (context as CompanyDetails);
+                    if (Company.Logo == "No logo provided")
+                    {
+                        <div>
+                            <h4>No logo provided</h4>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="image">
+                            <img src="@(Company.Logo)?apiKey=EXZsCpZ0MQv2fO03mMbNnSE0xnWDawTp" alt="@(Company.Logo) Logo" />
+                        </div>
+                    }
+                }
+            </Template>
+        </GridColumn>
+        <GridColumn Field=@nameof(CompanyDetails.IdCompany) HeaderText="Ticker" TextAlign="TextAlign.Left" Width="30"></GridColumn>
+        <GridColumn Field=@nameof(CompanyDetails.Name) HeaderText="Name" Width="100"></GridColumn>
+        <GridColumn Field=@nameof(CompanyDetails.Website) HeaderText="Website" TextAlign="TextAlign.Left" Width="50"></GridColumn>
+        <GridColumn Field=@nameof(CompanyDetails.Description) HeaderText="Description" Format="C2" TextAlign="TextAlign.Left" Width="120"></GridColumn>
+        <GridColumn HeaderText="Options" TextAlign="TextAlign.Center" Width="60">
+            <Template>
+                @{
+                    var company = (context as CompanyDetails);
+                    <button type="button" class="btn btn-primary btn-delete" @onclick="((args)=> DeleteCompanyFromWatchList(args,company))"><i class="fas fa-trash-alt"></i>   Delete</button>
+                }
+            </Template>
+        </GridColumn>
+    </GridColumns>
+</SfGrid>
+
+
+
+@code {
+    private List<CompanyDetails> Companies { get; set; }
+    private SfGrid<CompanyDetails> Grid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Companies = new List<CompanyDetails>();
+
+        try
+        {
+            Companies = await httpClient.GetFromJsonAsync<List<CompanyDetails>>("api/users/watchlist");
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+    private async Task DeleteCompanyFromWatchList(Microsoft.AspNetCore.Components.Web.MouseEventArgs args, CompanyDetails company)
+    {
+        var result = await js.InvokeAsync<bool>("confirm", "Are You sure?");
+        if (result)
+        {
+            var comp = Companies.SingleOrDefault(e => e.IdCompany == company.IdCompany);
+            Companies.Remove(comp);
+            await Grid.Refresh();
+            HttpResponseMessage response = await httpClient.DeleteAsync("api/users/watchlist/" + company.IdCompany);
+        }
+    }
+}
+
+<style>
+    body {
+        font-family: 'Montserrat';
+    }
+
+    .title {
+        font-weight: 600;
+        font-size: 38px;
+        color: #6374ae;
+    }
+
+    .image img {
+        width: 80px;
+        aspect-ratio: auto;
+    }
+
+    .e-grid .e-gridheader {
+        color: #6374ae;
+        font-family: 'Montserrat';
+    }
+
+    td{
+        font-family: 'Montserrat';
+    }
+
+    .btn-delete {
+        background-color: #eaebf4;
+        color: #36406e;
+        border: 1px solid #36406e;
+        font-family: 'Montserrat';
+    }
+
+    .btn-delete:hover,
+    .btn-delete:active,
+    .btn-delete:focus {
+        background-color: #6374ae;
+        border: 1px solid #6374ae;
+        color: white;
+    }
+</style>

@@ -1,0 +1,343 @@
+﻿@using APBDBlazorApp.Shared.Models;
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Layouts
+@using Syncfusion.Blazor.Data
+@using Syncfusion.Blazor.Charts
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject NavigationManager navigator
+@inject SignOutSessionStateManager SignOutManager
+@inject HttpClient httpClient
+@inject IJSRuntime js
+@page "/dashboard"
+
+<div class="jumbotron">
+    <div class="header-container">
+        <h3 class="title">Dashboard</h3>
+        <button type="button" class="btn btn-outline-primary btn-logout" @onclick="BeginSignOut">Log out <i class="fa-duotone fa-arrow-right-from-bracket"></i></button>
+    </div>
+    <label class="example-label">Company Symbol</label>
+    <div class="search-container">
+        <SfAutoComplete TValue="string" TItem="CompanyName" Placeholder="Company ticker" DataSource="@CompaniesNames" @oninput="@((args) => GetCompaniesNames(args))" @onchange="@((args) => GetDetails(args))">
+            <AutoCompleteFieldSettings Value="Ticker" />
+            <AutoCompleteTemplates TItem="CompanyName">
+                <HeaderTemplate>
+                    <span class='head'><span class='ticker'>Ticker</span><span class='name'>Name</span></span>
+                </HeaderTemplate>
+                <ItemTemplate>
+                    <span class='item'><span class='ticker'>@((context as CompanyName).Ticker)</span><span class='name'>@((context as CompanyName).Name)</span></span>
+                </ItemTemplate>
+            </AutoCompleteTemplates>
+        </SfAutoComplete>
+    </div>
+
+</div>
+
+<div id="panel" style="visibility:hidden;padding-top: 50px">
+    <SfDashboardLayout CellSpacing="@(new double[]{20, 20 })" Columns="4">
+        <DashboardLayoutPanels>
+            <DashboardLayoutPanel SizeX="4" SizeY="1" Row="0" Column="0">
+                <HeaderTemplate>
+                    <div>Company Details</div>
+                </HeaderTemplate>
+                <ContentTemplate>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th scope="col">Logo</th>
+                                <th scope="col">Ticker</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Website</th>
+                                <th scope="col">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    @if (@CompanyDetails.Logo == "No logo provided")
+                                    {
+                                        <div>No logo provided</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="image">
+                                            <img src="@(CompanyDetails.Logo)?apiKey=EXZsCpZ0MQv2fO03mMbNnSE0xnWDawTp" alt="@(CompanyDetails.Logo) Logo" />
+                                        </div>
+                                    }
+                                </td>
+                                <td>@CompanyDetails.IdCompany</td>
+                                <td>@CompanyDetails.Name</td>
+                                <td>@CompanyDetails.Website</td>
+                                <td>@CompanyDetails.Description</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </ContentTemplate>
+            </DashboardLayoutPanel>
+        </DashboardLayoutPanels>
+    </SfDashboardLayout>
+
+    <div class="buttons">
+        <div class="buttons_charts">
+            <SfButton CssClass="e-btn" Content="1 day ago" @onclick="@(() => GetDailyCharts())"></SfButton>
+            <SfButton CssClass="e-btn" Content="1 week ago" @onclick="@(() => GetWeekCharts())"></SfButton>
+            <SfButton CssClass="e-btn" Content="1 month ago" @onclick="@(() => GetOneMonthCharts())"></SfButton>
+            <SfButton CssClass="e-btn" Content="3 months ago" @onclick="@(() => GetThreeMonthsCharts())"></SfButton>
+        </div>
+
+        <div class="buttons_add">
+            <button type="button" class="btn btn-outline-primary btn-watchlist" id="addWatchlist" @onclick="@(() => AddToWatchList())">
+                <i class="fa-solid fa-plus"></i>Add to Watchlist
+            </button>
+        </div>
+    </div>
+
+        <SfChart @ref="Chart" Title="@ticker">
+            <ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" />
+            <ChartTooltipSettings Enable="true"></ChartTooltipSettings>
+            <ChartSeriesCollection>
+            <ChartSeries DataSource="@StockChartsCompany.StockCharts" Width="5" BearFillColor="darkred" XName="DateTime" BullFillColor="darkgreen" High="High" Low="Low" Open="Open" Close="Close" Volume="Volume" Type="ChartSeriesType.HiloOpenClose">
+                </ChartSeries>
+            </ChartSeriesCollection>
+        </SfChart>
+    </div>
+
+@code {
+    private SfChart Chart;
+    private string ticker = " ";
+    private int resultsCount = 0;
+    private List<CompanyName> CompaniesNames = new List<CompanyName>();
+    private CompanyDetails CompanyDetails = new CompanyDetails();
+
+    private StockChartsGet StockChartsCompany = new StockChartsGet();
+    private StockChartsGet WeekCharts = new StockChartsGet();
+    private StockChartsGet ThreeMonthsCharts = new StockChartsGet();
+    private StockChartsGet OneMonthCharts = new StockChartsGet();
+    private StockChartsGet DailyCharts = new StockChartsGet();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            StockChartsCompany = new StockChartsGet();
+            WeekCharts = new StockChartsGet();
+            ThreeMonthsCharts = new StockChartsGet();
+            OneMonthCharts = new StockChartsGet();
+            DailyCharts = new StockChartsGet();
+
+            WeekCharts.StockCharts = new List<StockCharts>();
+            ThreeMonthsCharts.StockCharts = new List<StockCharts>();
+            OneMonthCharts.StockCharts = new List<StockCharts>();
+            DailyCharts.StockCharts = new List<StockCharts>();
+            CompaniesNames = new List<CompanyName>();
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+
+    private async Task BeginSignOut(MouseEventArgs args)
+    {
+        await SignOutManager.SetSignOutState();
+        navigator.NavigateTo("authentication/logout");
+    }
+
+
+    private async Task GetCompaniesNames(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        CompaniesNames = await httpClient.GetFromJsonAsync<List<CompanyName>>("api/companies?ticker=" + args.Value.ToString());
+    }
+
+    private async Task GetDetails(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        ticker = args.Value.ToString();
+        CompanyDetails = await httpClient.GetFromJsonAsync<CompanyDetails>("api/companies/" + ticker);
+        DailyCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/daily");
+        StockChartsCompany = DailyCharts;
+        await Chart.RefreshAsync();
+        await js.InvokeVoidAsync("ShowDetails");
+    }
+
+    private async Task GetWeekCharts()
+    {
+        if (WeekCharts.StockCharts.Count == 0)
+        {
+            WeekCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/" + DateTime.UtcNow.Date.AddDays(-7).ToString("yyyy-MM-dd") + "/" + DateTime.UtcNow.Date.ToString("yyyy-MM-dd"));
+        }
+        StockChartsCompany = WeekCharts;
+        resultsCount = StockChartsCompany.ResultsCount;
+        await Chart.RefreshAsync();
+    }
+
+    private async Task GetThreeMonthsCharts()
+    {
+        if (ThreeMonthsCharts.StockCharts.Count == 0)
+        {
+            ThreeMonthsCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/" + DateTime.UtcNow.Date.AddMonths(-3).ToString("yyyy-MM-dd") + "/" + DateTime.UtcNow.Date.ToString("yyyy-MM-dd"));
+        }
+        StockChartsCompany = ThreeMonthsCharts;
+        resultsCount = StockChartsCompany.ResultsCount;
+        await Chart.RefreshAsync();
+    }
+
+    private async Task GetOneMonthCharts()
+    {
+        if (OneMonthCharts.StockCharts.Count == 0)
+        {
+            OneMonthCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/" + DateTime.UtcNow.Date.AddMonths(-1).ToString("yyyy-MM-dd") + "/" + DateTime.UtcNow.Date.ToString("yyyy-MM-dd"));
+        }
+        StockChartsCompany = OneMonthCharts;
+        resultsCount = StockChartsCompany.ResultsCount;
+        await Chart.RefreshAsync();
+    }
+
+    private async Task GetDailyCharts()
+    {
+        StockChartsCompany = DailyCharts;
+        resultsCount = StockChartsCompany.ResultsCount;
+        await Chart.RefreshAsync();
+
+    }
+
+    private async Task AddToWatchList()
+    {
+        var result = await js.InvokeAsync<bool>("confirm", "Are you sure?");
+        if (result)
+        {
+            CompanyPost post = new CompanyPost { IdCompany = ticker };
+            HttpResponseMessage response = await httpClient.PostAsJsonAsync("api/users/watchlist", post);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await js.InvokeVoidAsync("ChangeButtonText");
+            }
+        }
+    }
+}
+
+<style>
+    body {
+        font-family: 'Montserrat';
+    }
+    .search-container {
+        max-width: 70%;
+    }
+
+    .btn-logout, .btn-watchlist {
+        background-color: #eaebf4;
+        color: #36406e;
+        border: 1px solid #36406e;
+        margin-left: 70px;
+    }
+
+    .btn-logout:hover, .btn-watchlist:hover {
+       background-color: #6374ae;
+       border: 1px solid #6374ae;
+       color: white;
+    }
+
+    .e-btn {
+        background-color: #414f88;
+        border: 1px solid #414f88;
+        color: white;
+        padding: 7px 12px;
+        font-family: 'Montserrat';
+    }
+
+    .e-btn:hover {
+        background-color: #36406e;
+        border: 1px solid #36406e;
+        color: white;
+    }
+
+    .buttons_add{
+        margin-right: 18px;
+    }
+
+    .buttons_charts{
+        padding-top: 30px;
+    }
+
+    .header-container{
+        display: flex;
+        align-items: center;
+    }
+
+    .jumbotron {
+        color: #6374ae;
+    }
+
+    .title {
+        font-weight: 600;
+        font-size: 72px;
+    }
+
+    .image img {
+        width: 90px;
+        aspect-ratio: auto;
+    }
+
+    .image{
+        display: flex;
+        justify-content: center;
+    }
+
+    .control-wrapper {
+        max-width: 250px;
+        margin: 0 auto;
+        padding: 20px 0px 0px;
+    }
+
+    .example-label {
+        font-size: 14px;
+        margin-bottom: 6px;
+        font-weight: 400;
+    }
+
+    .head, .item {
+        display: table;
+        width: 100%;
+        margin: auto;
+    }
+
+    .head {
+        height: 40px;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .name, .ticker {
+        display: table-cell;
+        vertical-align: middle;
+        width: 50%;
+    }
+
+    .head .name {
+        text-indent: 16px;
+    }
+
+    .e-panel-content {
+        margin-top: 10px;
+        font-family: 'Montserrat';
+    }
+
+    td{
+        vertical-align: middle;
+    }
+
+    .e-panel-content td{
+        background-color: #f3f5fb;
+    }
+
+    .buttons{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-end;
+    }
+
+    #panel {
+        visibility: visible;
+    }
+</style>
