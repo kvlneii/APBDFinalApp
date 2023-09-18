@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>APBDBlazorApp.Server-bb6a49c2-f38f-439a-a5fd-20bc7434e485</UserSecretsId>
   </PropertyGroup>

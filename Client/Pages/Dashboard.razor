@@ -154,9 +154,7 @@
     {
         ticker = args.Value.ToString();
         CompanyDetails = await httpClient.GetFromJsonAsync<CompanyDetails>("api/companies/" + ticker);
-        DailyCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/daily");
-        StockChartsCompany = DailyCharts;
-        await Chart.RefreshAsync();
+        await GetDailyCharts();
         await js.InvokeVoidAsync("ShowDetails");
     }
 
@@ -195,6 +193,11 @@
 
     private async Task GetDailyCharts()
     {
+        if (DailyCharts.StockCharts.Count == 0)
+        {
+            DailyCharts = await httpClient.GetFromJsonAsync<StockChartsGet>("api/companies/" + ticker + "/daily");  
+        }
+
         StockChartsCompany = DailyCharts;
         resultsCount = StockChartsCompany.ResultsCount;
         await Chart.RefreshAsync();
@@ -223,6 +226,10 @@
     }
     .search-container {
         max-width: 70%;
+    }
+
+    .buttons{
+        margin-top: 50px;
     }
 
     .btn-logout, .btn-watchlist {

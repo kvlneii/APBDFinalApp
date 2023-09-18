@@ -203,8 +203,8 @@ namespace APBDBlazorApp.Server.Services
             {
                 try
                 {
-                    HttpResponseMessage response = await client.GetAsync("https://api.polygon.io/v2/aggs/ticker/" + ticker.ToUpper() + "/range/30/minute/" + DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd") +
-                        "/" + DateTime.UtcNow.Date.ToString("yyyy-MM-dd") + "?adjusted=true&sort=asc&&apiKey=" + _configuration.GetConnectionString("PolygonKey"));
+                    HttpResponseMessage response = await client.GetAsync("https://api.polygon.io/v2/aggs/ticker/" + ticker.ToUpper() + "/range/30/minute/" + DateTime.UtcNow.Date.AddDays(-2).ToString("yyyy-MM-dd") +
+                        "/" + DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd") + "?adjusted=true&sort=asc&&apiKey=" + _configuration.GetConnectionString("PolygonKey"));
 
                     var responseBody = await response.Content.ReadAsStringAsync();
                     jsonDocument = JsonDocument.Parse(responseBody);
